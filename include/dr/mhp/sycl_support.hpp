@@ -20,6 +20,25 @@ template <typename T> T sycl_get(T &v) {
   return temp;
 }
 
+template <typename... T> auto sycl_get_multiple(T &&...args) {
+  // std::tuple<T...> tpl { v... };
+  // T temp;
+  std::array<std::byte, (sizeof(T) + ... + 0)> data;
+  std::size_t offset = 0;
+  (sycl_queue().memcpy(data.data() + (offset += sizeof(args)) - sizeof(args),
+                 std::addressof(args), sizeof(args)),
+   ...);
+  return data;
+  // sycl_queue().memcpy(&temp, &v, N * sizeof(v)).wait();
+  // return temp;
+}
+
+template <typename T> auto sycl_get_multipl(T &arr, std::size_t n) {
+  T temp;
+  sycl_queue().memcpy(&temp, &arr, n * sizeof(T)).wait();
+  return temp;
+}
+
 template <typename T> void sycl_copy(T *begin, T *end, T *dst) {
   sycl_queue().memcpy(dst, begin, (end - begin) * sizeof(T)).wait();
 }

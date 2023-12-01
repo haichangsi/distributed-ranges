@@ -115,9 +115,13 @@ auto inclusive_exclusive_scan_impl_(R &&r, O &&d_first, BinaryOp &&binary_op,
       if constexpr (is_exclusive) {
         // TODO: both sycl_get are executed sequetially, add method similar to
         // sycl_get to read two (N) values in parallel
-        back = use_sycl ? binary_op(sycl_get(local_out.back()),
-                                    sycl_get(local_in.back()))
+        auto arr_test = {local_out.back(), local_in.back()};
+        auto test = sycl_get_multipl(arr_test, 2);
+        back = use_sycl ? binary_op(*test.begin(), *(test.begin()+1))
                         : binary_op(local_out.back(), local_in.back());
+        // back = use_sycl ? binary_op(sycl_get(local_out.back()),
+        //                             sycl_get(local_in.back()))
+        //                 : binary_op(local_out.back(), local_in.back());
       } else {
         back = use_sycl ? sycl_get(local_out.back()) : local_out.back();
       }
