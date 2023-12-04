@@ -36,6 +36,11 @@ void copy(CR_IN &&in, dr::distributed_contiguous_iterator auto out) {
   copy(0, in, out);
 }
 
+template <dr::distributed_contiguous_range DCR_IN>
+void copy(DCR_IN &&in, std::contiguous_iterator auto out) {
+  copy(0, in, out);
+}
+
 /// Copy distributed to local
 void copy(std::size_t root, dr::distributed_contiguous_range auto &&in,
           std::contiguous_iterator auto out) {
