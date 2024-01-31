@@ -47,6 +47,7 @@ add_executable(
   mhp-tests-3
   mhp-tests.cpp
   communicator-3.cpp
+  distributed_vector-3.cpp
   halo-3.cpp
   slide_view-3.cpp)
 

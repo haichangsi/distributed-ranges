@@ -161,7 +161,8 @@ public:
     const auto my_process_segment_index = dv_->backend.getrank();
 
     if (my_process_segment_index == segment_index_)
-      return dv_->data_ + index_ + dv_->distribution_.halo().prev;
+      return dv_->data_[segment_index_ / dv_->segment_size_] + index_ +
+             dv_->distribution_.halo().prev;
 #ifndef SYCL_LANGUAGE_VERSION
     assert(!dv_->distribution_.halo().periodic); // not implemented
 #endif
@@ -171,22 +172,23 @@ public:
       assert(index_ <= dv_->distribution_.halo()
                            .next); // <= instead of < to cover end() case
 #endif
-      return dv_->data_ + dv_->distribution_.halo().prev + index_ +
-             dv_->segment_size_;
+      return dv_->data_[segment_index_ / dv_->segment_size_] +
+             dv_->distribution_.halo().prev + index_ + dv_->segment_size_;
     }
 
     if (my_process_segment_index == segment_index_ + 1) {
 #ifndef SYCL_LANGUAGE_VERSION
       assert(dv_->segment_size_ - index_ <= dv_->distribution_.halo().prev);
 #endif
-      return dv_->data_ + dv_->distribution_.halo().prev + index_ -
-             dv_->segment_size_;
+      return dv_->data_[segment_index_ / dv_->segment_size_] +
+             dv_->distribution_.halo().prev + index_ - dv_->segment_size_;
     }
 
 #ifndef SYCL_LANGUAGE_VERSION
     assert(false); // trying to read non-owned memory
 #endif
-    return static_cast<decltype(dv_->data_)>(nullptr);
+    return static_cast<
+        decltype(dv_->data_[segment_index_ / dv_->segment_size_])>(nullptr);
   }
 
   auto segments() const {

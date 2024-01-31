@@ -19,6 +19,7 @@ public:
     void *data = __detail::allocator<std::byte>().allocate(data_size);
     DRLOG("called MPI allocate({}) -> got:{}", data_size, data);
     win_.create(default_comm(), data, data_size);
+    // TODO it has to write to the same window
     active_wins().insert(win_.mpi_win());
     return data;
   }
@@ -227,8 +228,10 @@ public:
   ~distributed_vector() {
     if (!finalized()) {
       fence();
-      if (data_ != nullptr) {
-        backend.deallocate(data_, data_size_ * sizeof(value_type));
+      if (data_[0] != nullptr) {
+        for (std::size_t i = 0; i < data_.size(); i++) {
+          backend.deallocate(data_[i], data_sizes_[i] * sizeof(value_type));
+        }
       }
 
       delete halo_;
@@ -267,26 +270,33 @@ private:
     if (seg_size > 0) {
       assert(seg_size % gran == 0 &&
              "size must be a multiple of the granularity");
+      assert(hb.prev / gran <= seg_size &&
+             "size must be a multiple of the granularity");
+      assert(hb.next / gran <= seg_size &&
+             "size must be a multiple of the granularity");
       segment_size_ = seg_size;
     } else {
       segment_size_ =
           gran * std::max({(size / gran + comm_size - 1) / comm_size,
                            hb.prev / gran, hb.next / gran});
     }
-
-    data_size_ = segment_size_ + hb.prev + hb.next;
-
+    std::size_t data_size = segment_size_ + hb.prev + hb.next;
+    T *data = nullptr;
     if (size_ > 0) {
-      data_ = static_cast<T *>(backend.allocate(data_size_ * sizeof(T)));
+      data = static_cast<T *>(backend.allocate(data_size * sizeof(T)));
     }
 
-    halo_ = new span_halo<T>(default_comm(), data_, data_size_, hb);
+    // some index neccessary prob
+    halo_ = new span_halo<T>(default_comm(), data, data_size, hb);
 
     std::size_t segment_index = 0;
     for (std::size_t i = 0; i < size; i += segment_size_) {
       segments_.emplace_back(this, segment_index++,
-                             std::min(segment_size_, size - i), data_size_);
+                             std::min(segment_size_, size - i), data_size);
     }
+
+    data_.push_back(data);
+    data_sizes_.push_back(data_size);
 
     fence();
   }
@@ -294,8 +304,8 @@ private:
   friend dv_segment_iterator<distributed_vector>;
 
   std::size_t segment_size_ = 0;
-  std::size_t data_size_ = 0; // size + halo
-  T *data_ = nullptr;
+  std::vector<std::size_t> data_sizes_; // size + halo
+  std::vector<T *> data_;
   span_halo<T> *halo_;
 
   distribution distribution_;
